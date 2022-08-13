@@ -724,6 +724,9 @@ static gboolean emit_property_changes(gpointer data)
     gpointer prop_name, prop_value;
     GHashTableIter iter;
 
+    if (!ud->connection)
+        return TRUE;
+
     if (g_hash_table_size(ud->changed_properties) > 0) {
         GVariant *params;
         GVariantBuilder *properties = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
@@ -761,6 +764,10 @@ static void emit_seeked_signal(UserData *ud)
     double position_s;
     int64_t position_us;
     GError *error = NULL;
+
+    if (!ud->connection)
+        return;
+
     mpv_get_property(ud->mpv, "time-pos", MPV_FORMAT_DOUBLE, &position_s);
     position_us = position_s * 1000000.0; // s -> us
     params = g_variant_new("(x)", position_us);
@@ -1029,8 +1036,10 @@ int mpv_open_cplugin(mpv_handle *mpv)
     g_source_remove(mpv_pipe_source);
     g_source_remove(timeout_source);
 
-    g_dbus_connection_unregister_object(ud.connection, ud.root_interface_id);
-    g_dbus_connection_unregister_object(ud.connection, ud.player_interface_id);
+    if (ud.connection) {
+        g_dbus_connection_unregister_object(ud.connection, ud.root_interface_id);
+        g_dbus_connection_unregister_object(ud.connection, ud.player_interface_id);
+    }
 
     g_bus_unown_name(ud.bus_id);
     g_main_loop_unref(loop);
